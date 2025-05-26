@@ -5,6 +5,7 @@ from sqlalchemy import String, ForeignKey, DateTime, Date, Text, Integer, MetaDa
 from datetime import datetime, date
 from app.db import Base
 
+
 class User(Base):
     __tablename__ = "Users"
 
