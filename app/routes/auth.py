@@ -28,13 +28,14 @@ auth_bp = Blueprint('auth', __name__)
 def register():
     try:
         data = request.get_json()
+        print(data)
 
-        required_fields = ['full_name', 'email', 'password', 'birthday', 'gender', 'role']
+        required_fields = ['fullName', 'email', 'password', 'birthDate', 'selectedGender', 'selectedRole']
         if not all(field in data for field in required_fields):
             return jsonify({"error": "Не все обязательные поля заполнены"}), 400
 
         try:
-            data['birthday'] = datetime.strptime(data['birthday'], '%Y-%m-%d').date()
+            data['birthDate'] = datetime.strptime(data['birthDate'], '%Y-%m-%d').date()
         except ValueError:
             return jsonify({"error": "Некорректный формат даты. Используйте YYYY-MM-DD"}), 400
 
@@ -45,9 +46,9 @@ def register():
         refresh_token = create_refresh_token(identity=str(user.user_id))
 
         response = jsonify({
-            "message": "Пользователь успешно зарегистрирован",
+            "msg": "Пользователь успешно зарегистрирован",
             "user_id": user.user_id,
-            "role": data['role']
+            "role": data['selectedRole']
         })
 
         set_access_cookies(response, access_token)
@@ -56,13 +57,14 @@ def register():
 
 
     except ValueError as e:
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"msg": str(e)}), 400
     except Exception as e:
         return jsonify({"error": f"Внутренняя ошибка сервера: {str(e)}"}), 500
 
 @auth_bp.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
+
 
     user = repo.authenticate_user(data.get('email'), data.get('password'))
     print(data.get('email'), data.get('password'))
@@ -98,3 +100,14 @@ def refresh():
 def profile():
     user_id = get_jwt_identity()
     return jsonify({"user_id": user_id})
+
+@auth_bp.route('/check_email', methods=['POST'])
+def check_email():
+    data = request.get_json()
+
+    user = repo.get_user_by_email(data['email'])
+    if not user:
+        return jsonify({"msg": "Данный email свободен"})
+    else:
+        return jsonify({"msg": "Данный email занят"})
+
