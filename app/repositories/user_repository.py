@@ -21,11 +21,9 @@ class UserRepository:
         ).scalar_one_or_none()
 
     def create_user_with_role(self, user_data: dict) -> User:
-
         existing_user = self.get_user_by_email(user_data['email'])
         if existing_user:
             raise ValueError("Пользователь с таким email уже существует")
-
 
         try:
             user = User(
@@ -39,10 +37,8 @@ class UserRepository:
                 profile_picture_url=user_data.get('profile_picture_url'),
                 unique_code=user_data.get('unique_code', '')
             )
-
             self.session.add(user)
             self.session.flush()
-
             role = user_data.get('selectedRole', 'student').lower()
 
             if role == 'student':
@@ -77,7 +73,6 @@ class UserRepository:
 
             self.session.commit()
             return user
-
 
         except Exception as e:
             self.session.rollback()
