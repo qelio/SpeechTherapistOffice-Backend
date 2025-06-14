@@ -15,6 +15,11 @@ class UserRepository:
     def get_user_by_id(self, user_id: int) -> Optional[User]:
         return self.session.get(User, user_id)
 
+    def get_user_by_unique_code(self, unique_code: str) -> Optional[User]:
+        return self.session.execute(
+            select(User).where(User.unique_code == unique_code)
+        ).scalar_one_or_none()
+
     def get_user_by_email(self, email: str) -> Optional[User]:
         return self.session.execute(
             select(User).where(User.email == email)
@@ -80,12 +85,8 @@ class UserRepository:
 
     def authenticate_user(self, email: str, password: str) -> Optional[User]:
         user = self.get_user_by_email(email)
-        # TODO: исправить временную заглушку на проверку хэша
         if user and check_password_hash(user.password_hash, password):
             return user
-
-        # if user and user.password_hash == password:
-        #     return user
         return None
 
     def update_user(self, user_id: int, update_data: dict) -> Optional[User]:
