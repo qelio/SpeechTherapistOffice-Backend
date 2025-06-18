@@ -58,11 +58,20 @@ def get_subscription(subscription_id):
 
     try:
         subscription = repo_subscriptions.get_subscription_by_id(subscription_id)
+        lessons = repo_lessons.get_lessons_by_subscription(subscription_id)
+
+        lessons_data = [{
+            "lesson_id": lesson.lesson_id,
+            "lesson_date_time": lesson.lesson_date_time.isoformat(),
+            "duration": lesson.duration,
+            "status": lesson.status,
+            "online_call_url": lesson.online_call_url
+        } for lesson in lessons]
+
         if not subscription:
             return jsonify({"message": "Subscription not found"}), 404
 
-        if (subscription.student_id != current_user_id and
-                subscription.teacher_id != current_user_id):
+        if (subscription.student_id != int(current_user_id)) and (subscription.teacher_id != int(current_user_id)):
             return jsonify({"message": "Access denied"}), 403
 
         subscription_data = {
@@ -73,7 +82,8 @@ def get_subscription(subscription_id):
             "created_at": subscription.created_at.isoformat(),
             "in_archive": subscription.in_archive,
             "student_id": subscription.student_id,
-            "teacher_id": subscription.teacher_id
+            "teacher_id": subscription.teacher_id,
+            "lessons": lessons_data
         }
 
         return jsonify(subscription_data), 200
@@ -95,7 +105,6 @@ def get_student_subscriptions(student_id):
             return jsonify({"message": "Access denied"}), 403
 
         subscriptions = repo_subscriptions.get_subscriptions_for_student(student_id)
-
         subscriptions_data = [{
             "subscription_id": sub.subscription_id,
             "total_lessons": sub.total_lessons,
@@ -118,6 +127,46 @@ def get_teacher_subscriptions():
 
     try:
         subscriptions = repo_subscriptions.get_subscriptions_for_teacher(current_user_id)
+
+        subscriptions_data = []
+        for sub in subscriptions:
+            lessons = repo_lessons.get_lessons_by_subscription(sub.subscription_id)
+
+            lessons_data = [{
+                "lesson_id": lesson.lesson_id,
+                "lesson_date_time": lesson.lesson_date_time.isoformat(),
+                "duration": lesson.duration,
+                "status": lesson.status,
+                "online_call_url": lesson.online_call_url
+            } for lesson in lessons]
+
+            subscription_data = {
+                "subscription_id": sub.subscription_id,
+                "total_lessons": sub.total_lessons,
+                "start_date": sub.start_date.isoformat(),
+                "end_date": sub.end_date.isoformat(),
+                "student_id": sub.student_id,
+                "student_full_name": sub.student.user.full_name,
+                "teacher_id": sub.teacher_id,
+                "teacher_full_name": sub.teacher.user.full_name,
+                "in_archive": sub.in_archive,
+                "lessons": lessons_data
+            }
+            subscriptions_data.append(subscription_data)
+
+        return jsonify(subscriptions_data), 200
+
+    except Exception as e:
+        return jsonify({"message": str(e)}), 500
+
+
+@subscriptions_bp.route('/student', methods=['GET'])
+@jwt_required()
+def get_current_student_subscriptions():
+    current_user_id = get_jwt_identity()
+
+    try:
+        subscriptions = repo_subscriptions.get_subscriptions_for_student(current_user_id)
 
         subscriptions_data = []
         for sub in subscriptions:

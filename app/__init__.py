@@ -1,3 +1,5 @@
+import os
+
 from flask_jwt_extended import JWTManager
 from flask import Flask
 from flask_migrate import Migrate
@@ -7,6 +9,7 @@ from flask_cors import CORS
 from app.config import DevelopmentConfig
 from app.db import db
 from werkzeug.utils import secure_filename
+from app.tasks.scheduler import init_scheduler
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 UPLOAD_FOLDER = 'uploads/users'
@@ -32,6 +35,8 @@ def create_app():
     app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
     jwt = JWTManager(app)
 
+    init_scheduler(app)
+
     db.init_app(app)
     migrate = Migrate(app, db)
 
@@ -49,5 +54,32 @@ def create_app():
 
     from app.routes.disciplines import disciplines_bp
     app.register_blueprint(disciplines_bp, url_prefix='/disciplines')
+
+    from app.routes.branches import branches_bp
+    app.register_blueprint(branches_bp, url_prefix='/branches')
+
+    from app.routes.classrooms import classrooms_bp
+    app.register_blueprint(classrooms_bp, url_prefix='/classrooms')
+
+    from app.routes.lessons import lessons_bp
+    app.register_blueprint(lessons_bp, url_prefix='/lessons')
+
+    from app.routes.education_classifiers import education_classifier_bp
+    app.register_blueprint(education_classifier_bp, url_prefix='/education_classifiers')
+
+    from app.routes.education_modules import education_module_bp
+    app.register_blueprint(education_module_bp, url_prefix='/education_modules')
+
+    from app.routes.education_exercises import education_exercise_bp
+    app.register_blueprint(education_exercise_bp, url_prefix='/education_exercises')
+
+    from app.routes.tests import tests_bp
+    app.register_blueprint(tests_bp, url_prefix='/tests')
+
+    from app.routes.test_packages import test_packages_bp
+    app.register_blueprint(test_packages_bp, url_prefix='/test_packages')
+
+    from app.routes.active_tests import active_tests_bp
+    app.register_blueprint(active_tests_bp, url_prefix='/active_tests')
 
     return app

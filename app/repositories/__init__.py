@@ -6,3 +6,9 @@ from .lesson_repository import LessonRepository
 from .discipline_repository import DisciplineRepository
 from .branch_repository import BranchRepository
 from .classroom_repository import ClassroomRepository
+from .education_classifier_repository import EducationClassifierRepository
+from .education_module_repository import EducationModuleRepository
+from .education_exercise_repository import EducationExerciseRepository
+from .test_repository import TestRepository
+from .active_test_repository import ActiveTestRepository
+from .test_package_repository import TestPackageRepository

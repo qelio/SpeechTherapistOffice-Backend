@@ -1,6 +1,6 @@
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from datetime import datetime
-from sqlalchemy import select, and_, or_
+from sqlalchemy import select, and_, or_, text, func
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from app.models import Lesson, Subscription, Student, Teacher
@@ -40,7 +40,13 @@ class LessonRepository:
             .order_by(Lesson.lesson_date_time)
         ).scalars().all()
 
-    def get_upcoming_lessons(self, user_id: int, user_type: str, limit: int = 10) -> List[Lesson]:
+    def get_upcoming_lessons(
+            self,
+            user_id: int,
+            user_type: str,
+            page: int = 1,
+            per_page: int = 10
+    ) -> Tuple[List[Lesson], int]:
         now = datetime.now()
         if user_type == 'student':
             condition = Lesson.student_id == user_id
@@ -49,7 +55,7 @@ class LessonRepository:
         else:
             raise ValueError("Invalid user type. Use 'student' or 'teacher'")
 
-        return self.session.execute(
+        query = (
             select(Lesson)
             .where(and_(
                 condition,
@@ -57,8 +63,56 @@ class LessonRepository:
                 Lesson.status == 'scheduled'
             ))
             .order_by(Lesson.lesson_date_time)
-            .limit(limit)
+        )
+
+        lessons = self.session.execute(
+            query.offset((page - 1) * per_page).limit(per_page)
         ).scalars().all()
+
+
+        total = self.session.execute(
+            select(func.count()).select_from(query.subquery())
+        ).scalar_one()
+
+        return lessons, total
+
+    def get_past_lessons(
+            self,
+            user_id: int,
+            user_type: str,
+            page: int = 1,
+            per_page: int = 10
+    ) -> Tuple[List[Lesson], int]:
+        now = datetime.now()
+        if user_type == 'student':
+            condition = Lesson.student_id == user_id
+        elif user_type == 'teacher':
+            condition = Lesson.teacher_id == user_id
+        else:
+            raise ValueError("Invalid user type. Use 'student' or 'teacher'")
+
+        query = (
+            select(Lesson)
+            .where(and_(
+                condition,
+                or_(
+                    Lesson.status == 'completed',
+                    Lesson.status == 'cancelled_in_time',
+                    Lesson.status == 'missed'
+                )
+            ))
+            .order_by(Lesson.lesson_date_time.desc())
+        )
+
+        lessons = self.session.execute(
+            query.offset((page - 1) * per_page).limit(per_page)
+        ).scalars().all()
+
+        total = self.session.execute(
+            select(func.count()).select_from(query.subquery())
+        ).scalar_one()
+
+        return lessons, total
 
     def create_lesson(
             self,
@@ -68,7 +122,9 @@ class LessonRepository:
             teacher_id: int,
             student_id: int,
             subscription_id: Optional[int] = None,
-            online_call_url: Optional[str] = None
+            online_call_url: Optional[str] = None,
+            classroom_id: Optional[int] = None,
+            discipline_id: Optional[int] = None
     ) -> Lesson:
         try:
             lesson = Lesson(
@@ -79,6 +135,8 @@ class LessonRepository:
                 student_id=student_id,
                 subscription_id=subscription_id,
                 online_call_url=online_call_url,
+                classroom_id=classroom_id,
+                discipline_id=discipline_id,
                 created_at=datetime.now()
             )
             self.session.add(lesson)
@@ -95,7 +153,9 @@ class LessonRepository:
             duration: Optional[int] = None,
             status: Optional[str] = None,
             online_call_url: Optional[str] = None,
-            subscription_id: Optional[int] = None
+            subscription_id: Optional[int] = None,
+            classroom_id: Optional[int] = None,
+            discipline_id: Optional[int] = None
     ) -> Optional[Lesson]:
         lesson = self.get_lesson_by_id(lesson_id)
         if not lesson:
@@ -112,6 +172,10 @@ class LessonRepository:
                 lesson.online_call_url = online_call_url
             if subscription_id is not None:
                 lesson.subscription_id = subscription_id
+            if classroom_id is not None:
+                lesson.classroom_id = classroom_id
+            if discipline_id is not None:  # Добавлено
+                lesson.discipline_id = discipline_id
 
             self.session.commit()
             return lesson
@@ -138,3 +202,25 @@ class LessonRepository:
             lesson_id,
             status='completed'
         )
+
+    def miss_lesson(self, lesson_id: int) -> Optional[Lesson]:
+        return self.update_lesson(
+            lesson_id,
+            status='missed'
+        )
+
+    def get_lessons_by_classroom(self, classroom_id: int) -> List[Lesson]:
+        return self.session.execute(
+            select(Lesson)
+            .where(Lesson.classroom_id == classroom_id)
+            .order_by(Lesson.lesson_date_time)
+        ).scalars().all()
+
+    def get_lessons_to_complete(self, time_threshold: datetime) -> List[Lesson]:
+        return self.session.execute(
+            select(Lesson)
+            .where(and_(
+                Lesson.status == 'scheduled',
+                Lesson.lesson_date_time <= time_threshold
+            ))
+        ).scalars().all()

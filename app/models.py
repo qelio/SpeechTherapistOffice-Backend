@@ -7,6 +7,138 @@ from sqlalchemy import String, ForeignKey, DateTime, Date, Text, Integer, MetaDa
 from datetime import datetime, date, time
 from app.db import Base
 
+class ActiveTest(Base):
+    __tablename__ = "Active_tests"
+
+    active_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    time_start: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    time_end: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    status: Mapped[str] = mapped_column(Enum('active_sent', 'active_not_sent', name='active_test_status'))
+    assessment: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
+    test_id: Mapped[int] = mapped_column(ForeignKey("Tests.test_id"))
+    lesson_id: Mapped[Optional[int]] = mapped_column(ForeignKey("Lessons.lesson_id"), nullable=True)
+    student_id: Mapped[int] = mapped_column(ForeignKey("Students.user_id"))
+    teacher_id: Mapped[int] = mapped_column(ForeignKey("Teachers.user_id"))
+
+    test: Mapped["Test"] = relationship()
+    lesson: Mapped[Optional["Lesson"]] = relationship()
+    student: Mapped["Student"] = relationship()
+    teacher: Mapped["Teacher"] = relationship()
+    packages: Mapped[list["TestPackage"]] = relationship(back_populates="active_test")
+
+
+class TestPackage(Base):
+    __tablename__ = "Tests_packages"
+
+    package_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    status_verification: Mapped[str] = mapped_column(Enum('verified', 'not_verified', name='verification_status'))
+    exercise_start: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    exercise_end: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    student_answer: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    file_url: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    accumulated_score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
+    active_id: Mapped[int] = mapped_column(ForeignKey("Active_tests.active_id"))
+    exercise_id: Mapped[int] = mapped_column(ForeignKey("Education_exerсizes.exercise_id"))
+
+    active_test: Mapped["ActiveTest"] = relationship(back_populates="packages")
+    exercise: Mapped["EducationExercise"] = relationship()
+
+class Test(Base):
+    __tablename__ = "Tests"
+
+    test_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(100))
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    complexity: Mapped[str] = mapped_column(Enum('easy', 'medium', 'difficult', name='complexity_enum'))
+
+    discipline_id: Mapped[int] = mapped_column(ForeignKey("Disciplines.discipline_id"))
+    teacher_id: Mapped[int] = mapped_column(ForeignKey("Teachers.user_id"))
+
+    discipline: Mapped["Discipline"] = relationship()
+    teacher: Mapped["Teacher"] = relationship()
+    exercise_associations: Mapped[list["TestExerciseAssociation"]] = relationship(
+        back_populates="test"
+    )
+    exercises: Mapped[list["EducationExercise"]] = relationship(
+        secondary="Tests_has_Education_exerсizes",
+        viewonly=True
+    )
+
+
+class TestExerciseAssociation(Base):
+    __tablename__ = "Tests_has_Education_exerсizes"
+
+    test_id: Mapped[int] = mapped_column(
+        ForeignKey("Tests.test_id"),
+        primary_key=True
+    )
+    exercise_id: Mapped[int] = mapped_column(
+        ForeignKey("Education_exerсizes.exercise_id"),
+        primary_key=True
+    )
+    purpose_at: Mapped[datetime] = mapped_column(DateTime)
+
+    test: Mapped["Test"] = relationship(back_populates="exercise_associations")
+    exercise: Mapped["EducationExercise"] = relationship(back_populates="test_associations")
+
+class EducationClassifier(Base):
+    __tablename__ = "Education_classifier"
+
+    classifier_id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    administrator_id: Mapped[int] = mapped_column(ForeignKey("Administrators.Users_user_id"))
+    discipline_id: Mapped[int] = mapped_column(ForeignKey("Disciplines.discipline_id"))
+
+    administrator: Mapped["Administrator"] = relationship()
+    discipline: Mapped["Discipline"] = relationship()
+    modules: Mapped[list["EducationModule"]] = relationship(back_populates="classifier")
+
+
+class EducationModule(Base):
+    __tablename__ = "Education_modules"
+
+    module_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    description: Mapped[str] = mapped_column(Text)
+    preview_url: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    classifier_id: Mapped[int] = mapped_column(ForeignKey("Education_classifier.classifier_id"))
+    teacher_id: Mapped[int] = mapped_column(ForeignKey("Teachers.user_id"))
+
+    classifier: Mapped["EducationClassifier"] = relationship(back_populates="modules")
+    teacher: Mapped["Teacher"] = relationship()
+    exercises: Mapped[list["EducationExercise"]] = relationship(back_populates="module")
+
+
+class EducationExercise(Base):
+    __tablename__ = "Education_exerсizes"
+
+    exercise_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(150))
+    description: Mapped[str] = mapped_column(Text)
+    verification_type: Mapped[str] = mapped_column(Enum('auto', 'manual', name='verification_type_enum'))
+    created_at: Mapped[datetime] = mapped_column(DateTime)
+    right_answer: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    max_score: Mapped[int] = mapped_column(Integer)
+
+    module_id: Mapped[int] = mapped_column(ForeignKey("Education_modules.module_id"))
+    teacher_id: Mapped[int] = mapped_column(ForeignKey("Teachers.user_id"))
+
+    module: Mapped["EducationModule"] = relationship(back_populates="exercises")
+    teacher: Mapped["Teacher"] = relationship()
+    test_associations: Mapped[list["TestExerciseAssociation"]] = relationship(
+        back_populates="exercise"
+    )
+    tests: Mapped[list["Test"]] = relationship(
+        secondary="Tests_has_Education_exerсizes",
+        viewonly=True
+    )
+    test_packages: Mapped[list["TestPackage"]] = relationship(back_populates="exercise")
+
 
 class Branch(Base):
     __tablename__ = "Branches"
@@ -37,6 +169,7 @@ class Classroom(Base):
 
     branch: Mapped["Branch"] = relationship(back_populates="classrooms")
     administrator: Mapped["Administrator"] = relationship(back_populates="classrooms")
+    lessons: Mapped[list["Lesson"]] = relationship(back_populates="classroom")
 
 class Discipline(Base):
     __tablename__ = "Disciplines"
@@ -98,7 +231,7 @@ class Lesson(Base):
 
     lesson_id: Mapped[int] = mapped_column(primary_key=True)
     lesson_date_time: Mapped[datetime] = mapped_column()
-    duration: Mapped[int] = mapped_column()  # продолжительность в минутах
+    duration: Mapped[int] = mapped_column()
     status: Mapped[str] = mapped_column(
         Enum('scheduled', 'completed', 'cancelled_in_time', 'missed', name='lesson_status'))
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
@@ -108,13 +241,23 @@ class Lesson(Base):
         ForeignKey("Subscriptions.subscription_id"),
         nullable=True
     )
+    classroom_id: Mapped[int | None] = mapped_column(
+        ForeignKey("Classrooms.classroom_id"),
+        nullable=True
+    )
+    discipline_id: Mapped[int | None] = mapped_column(
+        ForeignKey("Disciplines.discipline_id"),
+        nullable=True
+    )
+
     teacher_id: Mapped[int] = mapped_column(ForeignKey("Teachers.user_id"))
     student_id: Mapped[int] = mapped_column(ForeignKey("Students.user_id"))
 
     subscription: Mapped["Subscription"] = relationship(back_populates="lessons")
     teacher: Mapped["Teacher"] = relationship()
     student: Mapped["Student"] = relationship()
-
+    classroom: Mapped["Classroom"] = relationship(back_populates="lessons")
+    discipline: Mapped["Discipline"] = relationship()
 
 class User(Base):
     __tablename__ = "Users"

@@ -174,12 +174,24 @@ def get_teacher_disciplines():
 
     try:
         disciplines = repo_disciplines.get_disciplines_for_teacher(current_user_id)
-        disciplines_data = [{
-            "discipline_id": d.discipline_id,
-            "name": d.name,
-            "description": d.description,
-            "administrator_id": d.administrator_id
-        } for d in disciplines]
+
+        disciplines_data = []
+        for d in disciplines:
+            teachers = repo_disciplines.get_teachers_for_discipline(d.discipline_id)
+
+            teachers_data = [{
+                "teacher_id": t.user_id,
+                "full_name": t.user.full_name
+            } for t in teachers]
+
+            disciplines_data.append({
+                "discipline_id": d.discipline_id,
+                "name": d.name,
+                "description": d.description,
+                "created_at": d.created_at.isoformat(),
+                "administrator_id": d.administrator_id,
+                "teachers": teachers_data
+            })
 
         return jsonify(disciplines_data), 200
     except Exception as e:
