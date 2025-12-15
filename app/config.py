@@ -1,5 +1,5 @@
 class Config:
-    SQLALCHEMY_DATABASE_URI = 'mysql+mysqlconnector://root:slava2012@localhost:3306/speechtherapistsoffice'
+    SQLALCHEMY_DATABASE_URI = 'mysql+mysqlconnector://gen_user:FRV%^PQOzvD6lm@192.168.0.4:3306/speechtherapistsoffice'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 class DevelopmentConfig(Config):
